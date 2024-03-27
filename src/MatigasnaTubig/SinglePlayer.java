@@ -1,6 +1,9 @@
 package MatigasnaTubig;
 
 import javax.swing.*;
+
+import MatigasnaTubig.MultiPlayer.Bullet;
+
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -20,22 +23,28 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     private static int ENEMY_MOVE_SPEED = 2;
     private static final int ENEMY_SPAWN_INTERVAL = 3000; // in milliseconds
     private static final int MAX_ENEMIES = 10;
-    private static final int SPEED_INCREASE_INTERVAL = 10000; // in milliseconds
-    private static final int SPEED_INCREASE_AMOUNT = 1;
+    private static final int BULLET_SIZE = 4;
+    private static final int MAX_BULLETS = 5;
+    private static final int BULLET_SPEED = 8;
 
+    private long lastShotTime = 0;
+    private static final long SHOT_DELAY = 200; 
     // Player variables
     private int playerX = WIDTH / 4;
     private int playerY = HEIGHT / 2;
+    private int playerDirection = KeyEvent.VK_RIGHT; // Initial direction
 
     // Enemy list
     private List<Enemy> enemies = new ArrayList<>();
 
+    // Bullets
+    private List<Bullet> bullets = new ArrayList<>();
+
     // Timers
     private Timer enemySpawnTimer;
-    private Timer speedIncreaseTimer;
 
     // Key press flags
-    private boolean upPressed, downPressed, leftPressed, rightPressed;
+    private boolean upPressed, downPressed, leftPressed, rightPressed, spacePressed;
 
     // Constructor
     public SinglePlayer() {
@@ -46,18 +55,24 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
         startGame();
     }
 
-    // KeyListener methods
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
         if (key == KeyEvent.VK_W) {
             upPressed = true;
+            playerDirection = KeyEvent.VK_UP;
         } else if (key == KeyEvent.VK_S) {
             downPressed = true;
+            playerDirection = KeyEvent.VK_DOWN;
         } else if (key == KeyEvent.VK_A) {
             leftPressed = true;
+            playerDirection = KeyEvent.VK_LEFT;
         } else if (key == KeyEvent.VK_D) {
             rightPressed = true;
+            playerDirection = KeyEvent.VK_RIGHT;
+        } else if (key == KeyEvent.VK_SPACE) {
+            spacePressed = true;
+            shoot();
         }
     }
 
@@ -72,6 +87,8 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             leftPressed = false;
         } else if (key == KeyEvent.VK_D) {
             rightPressed = false;
+        } else if (key == KeyEvent.VK_SPACE) {
+            spacePressed = false;
         }
     }
 
@@ -106,6 +123,12 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE / 2, enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 4);
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE, enemy.x - ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 2);
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE, enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 2);
+        }
+
+        // Draw bullets
+        g.setColor(Color.YELLOW);
+        for (Bullet bullet : bullets) {
+            g.fillRect(bullet.x - BULLET_SIZE / 2, bullet.y - BULLET_SIZE / 2, BULLET_SIZE, BULLET_SIZE);
         }
     }
 
@@ -148,102 +171,152 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     // Spawn enemy
     private void spawnEnemy() {
         int enemyX = WIDTH - ENEMY_SIZE; // Right side
-        int enemyY = (int) (Math.random() * (HEIGHT - ENEMY_SIZE)); // Random Y position
-        enemies.add(new Enemy(enemyX, enemyY));
-    }
+        int enemyY = (int) (
+                Math.random() * (HEIGHT - ENEMY_SIZE)); // Random Y position
+                enemies.add(new Enemy(enemyX, enemyY));
+            }
 
-    // Start the game
-    private void startGame() {
-        startEnemySpawning();
-        startSpeedIncreaseTimer();
-    }
+            // Start the game
+            private void startGame() {
+                startEnemySpawning();
+            }
 
-    // Start timer to increase enemy speed periodically
-    private void startSpeedIncreaseTimer() {
-        speedIncreaseTimer = new Timer();
-        speedIncreaseTimer.scheduleAtFixedRate(new TimerTask() {
+            // Main game loop
             @Override
             public void run() {
-                increaseEnemySpeed();
+                while (!Thread.currentThread().isInterrupted()) {
+                    update();
+                    repaint();
+                    try {
+                        Thread.sleep(16);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt(); // Restore interrupted status
+                    }
+                }
             }
-        }, SPEED_INCREASE_INTERVAL, SPEED_INCREASE_INTERVAL);
-    }
 
-    // Increase enemy speed
-    private void increaseEnemySpeed() {
-        ENEMY_MOVE_SPEED += SPEED_INCREASE_AMOUNT;
-    }
+            private void update() {
+                movePlayer();
+                moveEnemies();
+                if (spacePressed) {
+                    shoot();
+                }
+                moveBullets();
+            }
 
-    // Main game loop
-    @Override
-    public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
-            update();
-            repaint();
-            try {
-                Thread.sleep(16);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt(); // Restore interrupted status
+            private void moveEnemies() {
+                // List to hold enemies to be removed
+                List<Enemy> enemiesToRemove = new ArrayList<>();
+
+                // Move each enemy
+                for (Iterator<Enemy> iterator = enemies.iterator(); iterator.hasNext();) {
+                    Enemy enemy = iterator.next();
+                    enemy.move();
+                    // Wrap around to the right side if the enemy goes off the left edge
+                    if (enemy.x + ENEMY_SIZE < 0) {
+                        enemy.x = WIDTH; // Move the enemy to the right side
+                    }
+                    // Identify enemies that need to be removed
+                    if (enemy.x < 0) {
+                        enemiesToRemove.add(enemy);
+                    }
+                }
+
+                // Remove the identified enemies
+                enemies.removeAll(enemiesToRemove);
+            }
+
+            private void moveBullets() {
+                Iterator<Bullet> iterator = bullets.iterator();
+                while (iterator.hasNext()) {
+                    Bullet bullet = iterator.next();
+                    bullet.move();
+                    if (bullet.x > WIDTH || bullet.x < 0 || bullet.y > HEIGHT || bullet.y < 0) {
+                        iterator.remove(); // Remove bullets that go off the screen
+                    }
+                }
+            }
+            
+            private void shoot() {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastShotTime >= SHOT_DELAY && bullets.size() < MAX_BULLETS) {
+                    lastShotTime = currentTime;
+
+                    // Calculate bullet speed based on player direction
+                    int bulletXSpeed = 0;
+                    int bulletYSpeed = 0;
+
+                    // Determine bullet direction based on player's movement direction
+                    switch (playerDirection) {
+                        case KeyEvent.VK_UP:
+                            bulletYSpeed = -BULLET_SPEED;
+                            break;
+                        case KeyEvent.VK_DOWN:
+                            bulletYSpeed = BULLET_SPEED;
+                            break;
+                        case KeyEvent.VK_LEFT:
+                            bulletXSpeed = -BULLET_SPEED;
+                            break;
+                        case KeyEvent.VK_RIGHT:
+                            bulletXSpeed = BULLET_SPEED;
+                            break;
+                    }
+
+                    // Adjust bullet speed based on simultaneous movement directions
+                    if (upPressed && leftPressed) {
+                        bulletXSpeed = -BULLET_SPEED;
+                        bulletYSpeed = -BULLET_SPEED;
+                    } else if (upPressed && rightPressed) {
+                        bulletXSpeed = BULLET_SPEED;
+                        bulletYSpeed = -BULLET_SPEED;
+                    } else if (downPressed && leftPressed) {
+                        bulletXSpeed = -BULLET_SPEED;
+                        bulletYSpeed = BULLET_SPEED;
+                    } else if (downPressed && rightPressed) {
+                        bulletXSpeed = BULLET_SPEED;
+                        bulletYSpeed = BULLET_SPEED;
+                    }
+
+                    bullets.add(new Bullet(playerX, playerY, bulletXSpeed, bulletYSpeed));
+                }
+            }
+           
+
+            // Enemy class
+            private class Enemy {
+                int x, y;
+
+                public Enemy(int x, int y) {
+                    this.x = x;
+                    this.y = y;
+                }
+
+                // Move enemy
+                public void move() {
+                    x -= ENEMY_MOVE_SPEED; // Move towards the left
+                    if (x < 0) {
+                        // Do not remove here
+                    }
+                }
+            }
+
+            // Bullet class
+            private class Bullet {
+                int x, y;
+                int xSpeed, ySpeed;
+
+                public Bullet(int x, int y, int xSpeed, int ySpeed) {
+                    this.x = x;
+                    this.y = y;
+                    this.xSpeed = xSpeed;
+                    this.ySpeed = ySpeed;
+                }
+
+                // Move bullet
+                public void move() {
+                    x += xSpeed;
+                    y += ySpeed;
+                }
             }
         }
-    }
-
-    private void update() {
-        movePlayer();
-        moveEnemies();
-    }
-
-    private void moveEnemies() {
-        // List to hold enemies to be removed
-        List<Enemy> enemiesToRemove = new ArrayList<>();
-        
-        // Move each enemy
-        for (Iterator<Enemy> iterator = enemies.iterator(); iterator.hasNext();) {
-            Enemy enemy = iterator.next();
-            enemy.move();
-            // Wrap around to the right side if the enemy goes off the left edge
-            if (enemy.x + ENEMY_SIZE < 0) {
-                enemy.x = WIDTH; // Move the enemy to the right side
-            }
-            // Identify enemies that need to be removed
-            if (enemy.x < 0) {
-                enemiesToRemove.add(enemy);
-            }
-        }
-        
-        // Remove the identified enemies
-        enemies.removeAll(enemiesToRemove);
-    }
-
-    // Entry point of the program
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Single Player Mode");
-            SinglePlayer game = new SinglePlayer();
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.getContentPane().add(game);
-            frame.pack();
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
-            new Thread(game).start();
-        });
-    }
-
-    // Enemy class
-    private class Enemy {
-        int x, y;
-
-        public Enemy(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-
-        // Move enemy
-        public void move() {
-            x -= ENEMY_MOVE_SPEED; // Move towards the left
-            if (x < 0) {
-                // Do not remove here
-            }
-        }
-    }
-}
+   

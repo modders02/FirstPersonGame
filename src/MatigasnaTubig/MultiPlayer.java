@@ -61,30 +61,34 @@ public class MultiPlayer extends JFrame implements KeyListener {
 	}
 
 	protected void update() {
-		// Player movement
-		if (keys[KeyEvent.VK_W])
-			playerY -= 2;
-		if (keys[KeyEvent.VK_S])
-			playerY += 2;
-		if (keys[KeyEvent.VK_A])
-			playerX -= 2;
-		if (keys[KeyEvent.VK_D])
-			playerX += 2;
+	    // Player movement
+	    int playerSpeed = 4; // Initial player speed
+	    if (keys[KeyEvent.VK_SHIFT]) { // Increase speed if Shift key is pressed
+	        playerSpeed++;
+	    }
+	    if (keys[KeyEvent.VK_W])
+	        playerY -= playerSpeed;
+	    if (keys[KeyEvent.VK_S])
+	        playerY += playerSpeed;
+	    if (keys[KeyEvent.VK_A])
+	        playerX -= playerSpeed;
+	    if (keys[KeyEvent.VK_D])
+	        playerX += playerSpeed;
 
-		if (keys[KeyEvent.VK_UP])
-			player2Y -= 2;
-		if (keys[KeyEvent.VK_DOWN])
-			player2Y += 2;
-		if (keys[KeyEvent.VK_LEFT])
-			player2X -= 2;
-		if (keys[KeyEvent.VK_RIGHT])
-			player2X += 2;
+	    if (keys[KeyEvent.VK_UP])
+	        player2Y -= playerSpeed;
+	    if (keys[KeyEvent.VK_DOWN])
+	        player2Y += playerSpeed;
+	    if (keys[KeyEvent.VK_LEFT])
+	        player2X -= playerSpeed;
+	    if (keys[KeyEvent.VK_RIGHT])
+	        player2X += playerSpeed;
 
-		// Bullet movement
-		Iterator<Bullet> iterator = bullets.iterator();
-		while (iterator.hasNext()) {
-			Bullet bullet = iterator.next();
-			bullet.move();
+	    // Bullet movement
+	    Iterator<Bullet> iterator = bullets.iterator();
+	    while (iterator.hasNext()) {
+	        Bullet bullet = iterator.next();
+	        bullet.move();
 
 			// Check collision with blue player
 			if (!bullet.isPlayerBullet()) {
@@ -251,8 +255,9 @@ public class MultiPlayer extends JFrame implements KeyListener {
 		}
 
 		void move() {
-			x += 5 * directionX;
-			y += 5 * directionY;
+			int speed = 10;
+			x += speed * directionX;
+			y += speed * directionY;
 		}
 
 		boolean isStationary() {
