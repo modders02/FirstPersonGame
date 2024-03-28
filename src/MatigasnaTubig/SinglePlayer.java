@@ -1,9 +1,6 @@
 package MatigasnaTubig;
 
 import javax.swing.*;
-
-import MatigasnaTubig.MultiPlayer.Bullet;
-
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -14,7 +11,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class SinglePlayer extends JPanel implements Runnable, KeyListener {
-    // Constants
     private static final long serialVersionUID = 1L;
     private static final int WIDTH = 1300;
     private static final int HEIGHT = 800;
@@ -26,27 +22,26 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     private static final int BULLET_SIZE = 4;
     private static final int MAX_BULLETS = 5;
     private static final int BULLET_SPEED = 8;
+    private static final int HOUSE_X = PLAYER_SIZE / 2;
+    private static final int HOUSE_Y = HEIGHT / 2 - (PLAYER_SIZE * 3 / 2);
 
     private long lastShotTime = 0;
-    private static final long SHOT_DELAY = 200; 
-    // Player variables
+    private static final long SHOT_DELAY = 200;
+
     private int playerX = WIDTH / 4;
     private int playerY = HEIGHT / 2;
     private int playerDirection = KeyEvent.VK_RIGHT; // Initial direction
 
-    // Enemy list
     private List<Enemy> enemies = new ArrayList<>();
 
-    // Bullets
     private List<Bullet> bullets = new ArrayList<>();
 
-    // Timers
     private Timer enemySpawnTimer;
 
-    // Key press flags
     private boolean upPressed, downPressed, leftPressed, rightPressed, spacePressed;
 
-    // Constructor
+    private int playerPoints = 0;
+
     public SinglePlayer() {
         setBackground(Color.BLACK);
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
@@ -96,28 +91,32 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     public void keyTyped(KeyEvent e) {
     }
 
-    // Render method
+    private static final int MAX_HEALTH = 200;
+    private int playerHealth = MAX_HEALTH;
     private void render(Graphics g) {
         g.setColor(Color.BLACK);
         g.fillRect(0, 0, WIDTH, HEIGHT);
-
+        g.setColor(Color.GRAY);
+        int houseWidth = PLAYER_SIZE * 3;
+        int houseHeight = PLAYER_SIZE * 3;
+        g.fillRect(HOUSE_X, HOUSE_Y, houseWidth, houseHeight);
+        int[] roofX = {HOUSE_X, HOUSE_X + houseWidth / 2, HOUSE_X + houseWidth};
+        int[] roofY = {HOUSE_Y, HOUSE_Y - houseHeight / 2, HOUSE_Y};
+        g.setColor(Color.RED);
+        g.fillPolygon(roofX, roofY, 3);
+        g.setColor(Color.WHITE);
+        g.fillRect(playerX - PLAYER_SIZE / 2, playerY - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
         g.setColor(Color.BLUE);
         g.drawRect(playerX - PLAYER_SIZE / 2, playerY - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
         g.setColor(Color.WHITE);
-
-        // Draw player
-        g.setColor(Color.WHITE);
-        g.fillRect(playerX - PLAYER_SIZE / 2, playerY - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
-        g.drawLine(playerX, playerY, playerX, playerY + PLAYER_SIZE); // Body
+        g.drawLine(playerX, playerY, playerX, playerY + PLAYER_SIZE);
         g.drawLine(playerX, playerY + PLAYER_SIZE / 2, playerX - PLAYER_SIZE / 2, playerY + PLAYER_SIZE * 3 / 4);
         g.drawLine(playerX, playerY + PLAYER_SIZE / 2, playerX + PLAYER_SIZE / 2, playerY + PLAYER_SIZE * 3 / 4);
         g.drawLine(playerX, playerY + PLAYER_SIZE, playerX - PLAYER_SIZE / 2, playerY + PLAYER_SIZE * 3 / 2);
         g.drawLine(playerX, playerY + PLAYER_SIZE, playerX + PLAYER_SIZE / 2, playerY + PLAYER_SIZE * 3 / 2);
-
-        // Draw enemies
         g.setColor(Color.RED);
         for (Enemy enemy : enemies) {
-            g.fillRect(enemy.x - ENEMY_SIZE / 2, enemy.y - ENEMY_SIZE / 2, ENEMY_SIZE, ENEMY_SIZE);
+            g.fillRect(enemy.x, enemy.y, ENEMY_SIZE, ENEMY_SIZE);
             g.drawLine(enemy.x, enemy.y, enemy.x, enemy.y + ENEMY_SIZE); // Body
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE / 2, enemy.x - ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 4);
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE / 2, enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 4);
@@ -125,21 +124,27 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             g.drawLine(enemy.x, enemy.y + ENEMY_SIZE, enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE * 3 / 2);
         }
 
-        // Draw bullets
         g.setColor(Color.YELLOW);
         for (Bullet bullet : bullets) {
             g.fillRect(bullet.x - BULLET_SIZE / 2, bullet.y - BULLET_SIZE / 2, BULLET_SIZE, BULLET_SIZE);
         }
+        g.setColor(Color.WHITE);
+        g.fillRect(10, 10, playerHealth, 20); 
+        g.setColor(Color.BLACK);
+        g.drawRect(10, 10, MAX_HEALTH, 20); 
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 13)); 
+        g.drawString("Health: " + playerHealth, 10, 50);
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20)); 
+        g.drawString("Player Points: " + playerPoints, WIDTH / 2 - 80, 30); 
     }
 
-    // Paint method
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         render(g);
     }
-
-    // Player movement method
     private void movePlayer() {
         if (upPressed && playerY > 0) {
             playerY -= 5;
@@ -154,8 +159,6 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             playerX += 5;
         }
     }
-
-    // Enemy spawning method
     private void startEnemySpawning() {
         enemySpawnTimer = new Timer();
         enemySpawnTimer.scheduleAtFixedRate(new TimerTask() {
@@ -165,158 +168,173 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
                     spawnEnemy();
                 }
             }
-        }, 0, ENEMY_SPAWN_INTERVAL);
+        }, 0, ENEMY_SPAWN_INTERVAL); 
+    }
+    private void spawnEnemy() {
+        int enemyX = WIDTH - ENEMY_SIZE;
+        int enemyY = (int) (Math.random() * (HEIGHT - ENEMY_SIZE));
+        Enemy enemy = new Enemy(enemyX, enemyY);
+        enemies.add(enemy);
     }
 
-    // Spawn enemy
-    private void spawnEnemy() {
-        int enemyX = WIDTH - ENEMY_SIZE; // Right side
-        int enemyY = (int) (
-                Math.random() * (HEIGHT - ENEMY_SIZE)); // Random Y position
-                enemies.add(new Enemy(enemyX, enemyY));
+    private void startGame() {
+        startEnemySpawning();
+    }
+
+    @Override
+    public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            update();
+            repaint();
+            try {
+                Thread.sleep(16);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
+        }
+    }
 
-            // Start the game
-            private void startGame() {
-                startEnemySpawning();
+
+    private void moveBullets() {
+        Iterator<Bullet> iterator = bullets.iterator();
+        while (iterator.hasNext()) {
+            Bullet bullet = iterator.next();
+            bullet.move();
+            if (bullet.x > WIDTH || bullet.x < 0 || bullet.y > HEIGHT || bullet.y < 0) {
+                iterator.remove(); 
             }
+        }
+    }
 
-            // Main game loop
-            @Override
-            public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
-                    update();
-                    repaint();
-                    try {
-                        Thread.sleep(16);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt(); // Restore interrupted status
-                    }
-                }
-            }
-
-            private void update() {
-                movePlayer();
-                moveEnemies();
-                if (spacePressed) {
-                    shoot();
-                }
-                moveBullets();
-            }
-
-            private void moveEnemies() {
-                // List to hold enemies to be removed
-                List<Enemy> enemiesToRemove = new ArrayList<>();
-
-                // Move each enemy
-                for (Iterator<Enemy> iterator = enemies.iterator(); iterator.hasNext();) {
-                    Enemy enemy = iterator.next();
-                    enemy.move();
-                    // Wrap around to the right side if the enemy goes off the left edge
-                    if (enemy.x + ENEMY_SIZE < 0) {
-                        enemy.x = WIDTH; // Move the enemy to the right side
-                    }
-                    // Identify enemies that need to be removed
-                    if (enemy.x < 0) {
-                        enemiesToRemove.add(enemy);
-                    }
-                }
-
-                // Remove the identified enemies
-                enemies.removeAll(enemiesToRemove);
-            }
-
-            private void moveBullets() {
-                Iterator<Bullet> iterator = bullets.iterator();
-                while (iterator.hasNext()) {
-                    Bullet bullet = iterator.next();
-                    bullet.move();
-                    if (bullet.x > WIDTH || bullet.x < 0 || bullet.y > HEIGHT || bullet.y < 0) {
-                        iterator.remove(); // Remove bullets that go off the screen
-                    }
-                }
-            }
-            
-            private void shoot() {
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastShotTime >= SHOT_DELAY && bullets.size() < MAX_BULLETS) {
-                    lastShotTime = currentTime;
-
-                    // Calculate bullet speed based on player direction
-                    int bulletXSpeed = 0;
-                    int bulletYSpeed = 0;
-
-                    // Determine bullet direction based on player's movement direction
-                    switch (playerDirection) {
-                        case KeyEvent.VK_UP:
-                            bulletYSpeed = -BULLET_SPEED;
-                            break;
-                        case KeyEvent.VK_DOWN:
-                            bulletYSpeed = BULLET_SPEED;
-                            break;
-                        case KeyEvent.VK_LEFT:
-                            bulletXSpeed = -BULLET_SPEED;
-                            break;
-                        case KeyEvent.VK_RIGHT:
-                            bulletXSpeed = BULLET_SPEED;
-                            break;
-                    }
-
-                    // Adjust bullet speed based on simultaneous movement directions
-                    if (upPressed && leftPressed) {
-                        bulletXSpeed = -BULLET_SPEED;
-                        bulletYSpeed = -BULLET_SPEED;
-                    } else if (upPressed && rightPressed) {
-                        bulletXSpeed = BULLET_SPEED;
-                        bulletYSpeed = -BULLET_SPEED;
-                    } else if (downPressed && leftPressed) {
-                        bulletXSpeed = -BULLET_SPEED;
-                        bulletYSpeed = BULLET_SPEED;
-                    } else if (downPressed && rightPressed) {
-                        bulletXSpeed = BULLET_SPEED;
-                        bulletYSpeed = BULLET_SPEED;
-                    }
-
-                    bullets.add(new Bullet(playerX, playerY, bulletXSpeed, bulletYSpeed));
-                }
-            }
-           
-
-            // Enemy class
-            private class Enemy {
-                int x, y;
-
-                public Enemy(int x, int y) {
-                    this.x = x;
-                    this.y = y;
-                }
-
-                // Move enemy
-                public void move() {
-                    x -= ENEMY_MOVE_SPEED; // Move towards the left
-                    if (x < 0) {
-                        // Do not remove here
-                    }
-                }
-            }
-
-            // Bullet class
-            private class Bullet {
-                int x, y;
-                int xSpeed, ySpeed;
-
-                public Bullet(int x, int y, int xSpeed, int ySpeed) {
-                    this.x = x;
-                    this.y = y;
-                    this.xSpeed = xSpeed;
-                    this.ySpeed = ySpeed;
-                }
-
-                // Move bullet
-                public void move() {
-                    x += xSpeed;
-                    y += ySpeed;
+    private void checkCollisions() {
+        Iterator<Bullet> bulletIterator = bullets.iterator();
+        while (bulletIterator.hasNext()) {
+            Bullet bullet = bulletIterator.next();
+            Rectangle bulletRect = new Rectangle(bullet.x - BULLET_SIZE / 2, bullet.y - BULLET_SIZE / 2, BULLET_SIZE, BULLET_SIZE);
+            Iterator<Enemy> enemyIterator = enemies.iterator();
+            while (enemyIterator.hasNext()) {
+                Enemy enemy = enemyIterator.next();
+                Rectangle enemyRect = new Rectangle(enemy.x, enemy.y, ENEMY_SIZE, ENEMY_SIZE);
+                if (bulletRect.intersects(enemyRect)) {
+                    bulletIterator.remove();
+                    enemyIterator.remove();
+                    playerPoints++; 
                 }
             }
         }
-   
+
+        Iterator<Enemy> enemyIterator = enemies.iterator();
+        while (enemyIterator.hasNext()) {
+            Enemy enemy = enemyIterator.next();
+            Rectangle enemyRect = new Rectangle(enemy.x, enemy.y, ENEMY_SIZE, ENEMY_SIZE);
+            Rectangle houseRect = new Rectangle(HOUSE_X, HOUSE_Y, PLAYER_SIZE * 3, PLAYER_SIZE * 3);
+            if (enemyRect.intersects(houseRect)) {
+                playerHealth -= 2;
+                enemyIterator.remove(); 
+            }
+        }
+    }
+
+
+    private void shoot() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastShotTime >= SHOT_DELAY && bullets.size() < MAX_BULLETS) {
+            lastShotTime = currentTime;
+
+           
+            int bulletXSpeed = 0;
+            int bulletYSpeed = 0;
+
+            switch (playerDirection) {
+                case KeyEvent.VK_UP:
+                    bulletYSpeed = -BULLET_SPEED;
+                    break;
+                case KeyEvent.VK_DOWN:
+                    bulletYSpeed = BULLET_SPEED;
+                    break;
+                case KeyEvent.VK_LEFT:
+                    bulletXSpeed = -BULLET_SPEED;
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    bulletXSpeed = BULLET_SPEED;
+                    break;
+            }
+
+            if (upPressed && leftPressed) {
+                bulletXSpeed = -BULLET_SPEED;
+                bulletYSpeed = -BULLET_SPEED;
+            } else if (upPressed && rightPressed) {
+                bulletXSpeed = BULLET_SPEED;
+                bulletYSpeed = -BULLET_SPEED;
+            } else if (downPressed && leftPressed) {
+                bulletXSpeed = -BULLET_SPEED;
+                bulletYSpeed = BULLET_SPEED;
+            } else if (downPressed && rightPressed) {
+                bulletXSpeed = BULLET_SPEED;
+                bulletYSpeed = BULLET_SPEED;
+            }
+
+            bullets.add(new Bullet(playerX, playerY, bulletXSpeed, bulletYSpeed));
+        }
+    }
+
+    private class Enemy {
+        int x, y;
+        boolean shouldRemove = false;
+
+        public Enemy(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        public void move(int playerX, int playerY) {
+            double angle = Math.atan2(HOUSE_Y - y, HOUSE_X - x);
+            int speed = ENEMY_MOVE_SPEED;
+            x += (int) (speed * Math.cos(angle));
+            y += (int) (speed * Math.sin(angle));
+
+            Rectangle enemyRect = new Rectangle(x, y, ENEMY_SIZE, ENEMY_SIZE);
+            Rectangle houseRect = new Rectangle(HOUSE_X, HOUSE_Y, PLAYER_SIZE * 3, PLAYER_SIZE * 3);
+            if (enemyRect.intersects(houseRect)) {
+                playerHealth -= 2;
+                shouldRemove = true;
+            }
+        }
+    }
+
+    private void update() {
+        movePlayer();
+
+        Iterator<Enemy> enemyIterator = enemies.iterator();
+        while (enemyIterator.hasNext()) {
+            Enemy enemy = enemyIterator.next();
+            enemy.move(playerX, playerY);
+            if (enemy.shouldRemove) {
+                enemyIterator.remove();
+            }
+        }
+
+        if (spacePressed) {
+            shoot();
+        }
+        moveBullets();
+        checkCollisions();
+    }
+
+    private class Bullet {
+        int x, y;
+        int xSpeed, ySpeed;
+
+        public Bullet(int x, int y, int xSpeed, int ySpeed) {
+            this.x = x;
+            this.y = y;
+            this.xSpeed = xSpeed;
+            this.ySpeed = ySpeed;
+        }
+
+        public void move() {
+            x += xSpeed;
+            y += ySpeed;
+        }
+    }
+}
