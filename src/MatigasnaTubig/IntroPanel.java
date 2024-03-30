@@ -60,9 +60,9 @@ public class IntroPanel extends JPanel {
         introFrame.dispose();
 
         // Start the SinglePlayer game
-        SinglePlayer game = new SinglePlayer();
+        SinglePlayer game = new SinglePlayer(null, null); // Pass null for frame and introPanel
         JFrame gameFrame = new JFrame("Single Player Mode");
-        gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Exit when the game window is closed
         gameFrame.setResizable(false);
         gameFrame.add(game);
         gameFrame.pack();
@@ -70,6 +70,7 @@ public class IntroPanel extends JPanel {
         gameFrame.setVisible(true);
         new Thread(game).start();
     }
+
 
     private void startMultiplayerGame() {
         // Start the multiplayer game directly by instantiating the MultiPlayer class

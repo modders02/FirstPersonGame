@@ -11,12 +11,13 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class SinglePlayer extends JPanel implements Runnable, KeyListener {
+    private IntroPanel introPanel;
     private static final long serialVersionUID = 1L;
     private static final int WIDTH = 1300;
     private static final int HEIGHT = 800;
     private static final int PLAYER_SIZE = 40;
     private static final int ENEMY_SIZE = 40;
-    private static int ENEMY_MOVE_SPEED = 2;
+    private static int ENEMY_MOVE_SPEED = 4;
     private static final int ENEMY_SPAWN_INTERVAL = 3000; // in milliseconds
     private static final int MAX_ENEMIES = 10;
     private static final int BULLET_SIZE = 4;
@@ -24,7 +25,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     private static final int BULLET_SPEED = 8;
     private static final int HOUSE_X = PLAYER_SIZE / 2;
     private static final int HOUSE_Y = HEIGHT / 2 - (PLAYER_SIZE * 3 / 2);
-
+    private int stage = 1;
     private long lastShotTime = 0;
     private static final long SHOT_DELAY = 200;
 
@@ -42,7 +43,15 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
 
     private int playerPoints = 0;
 
-    public SinglePlayer() {
+    private int playerHealth = 200; // Initial health
+
+    private JFrame frame; // Reference to the JFrame
+
+    private boolean gameOver = false; // Flag to track game over state
+
+    public SinglePlayer(JFrame frame, IntroPanel introPanel) {
+        this.frame = frame;
+        this.introPanel = introPanel;
         setBackground(Color.BLACK);
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addKeyListener(this);
@@ -53,7 +62,9 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
-        if (key == KeyEvent.VK_W) {
+        if (key == KeyEvent.VK_ESCAPE) {
+            showEscapePanel();
+        } else if (key == KeyEvent.VK_W) {
             upPressed = true;
             playerDirection = KeyEvent.VK_UP;
         } else if (key == KeyEvent.VK_S) {
@@ -91,8 +102,6 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     public void keyTyped(KeyEvent e) {
     }
 
-    private static final int MAX_HEALTH = 200;
-    private int playerHealth = MAX_HEALTH;
     private void render(Graphics g) {
         g.setColor(Color.BLACK);
         g.fillRect(0, 0, WIDTH, HEIGHT);
@@ -129,15 +138,19 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             g.fillRect(bullet.x - BULLET_SIZE / 2, bullet.y - BULLET_SIZE / 2, BULLET_SIZE, BULLET_SIZE);
         }
         g.setColor(Color.WHITE);
-        g.fillRect(10, 10, playerHealth, 20); 
+        g.fillRect(10, 10, playerHealth, 20);
         g.setColor(Color.BLACK);
-        g.drawRect(10, 10, MAX_HEALTH, 20); 
+        g.drawRect(10, 10, playerHealth, 20); // Corrected
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 13)); 
+        g.setFont(new Font("Arial", Font.BOLD, 13));
         g.drawString("Health: " + playerHealth, 10, 50);
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 20)); 
-        g.drawString("Player Points: " + playerPoints, WIDTH / 2 - 80, 30); 
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Player Points: " + playerPoints, WIDTH / 2 - 80, 30);
+
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Stage: " + stage, WIDTH - 120, 30);
     }
 
     @Override
@@ -145,6 +158,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
         super.paintComponent(g);
         render(g);
     }
+
     private void movePlayer() {
         if (upPressed && playerY > 0) {
             playerY -= 5;
@@ -159,6 +173,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             playerX += 5;
         }
     }
+
     private void startEnemySpawning() {
         enemySpawnTimer = new Timer();
         enemySpawnTimer.scheduleAtFixedRate(new TimerTask() {
@@ -168,8 +183,18 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
                     spawnEnemy();
                 }
             }
-        }, 0, ENEMY_SPAWN_INTERVAL); 
+        }, 0, ENEMY_SPAWN_INTERVAL - (stage * 500)); // Adjust spawn time based on stage
     }
+
+    private void updateStage() {
+        // Check if the player has reached the next stage
+        if (playerPoints >= stage * 10) { // For example, increase stage every 10 points
+            stage++;
+            enemySpawnTimer.cancel(); // Cancel the current timer
+            startEnemySpawning(); // Restart enemy spawning with updated spawn time
+        }
+    }
+
     private void spawnEnemy() {
         int enemyX = WIDTH - ENEMY_SIZE;
         int enemyY = (int) (Math.random() * (HEIGHT - ENEMY_SIZE));
@@ -184,8 +209,10 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
-            update();
-            repaint();
+            if (!isPaused) {
+                update();
+                repaint();
+            }
             try {
                 Thread.sleep(16);
             } catch (InterruptedException e) {
@@ -194,14 +221,13 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
         }
     }
 
-
     private void moveBullets() {
         Iterator<Bullet> iterator = bullets.iterator();
         while (iterator.hasNext()) {
             Bullet bullet = iterator.next();
             bullet.move();
             if (bullet.x > WIDTH || bullet.x < 0 || bullet.y > HEIGHT || bullet.y < 0) {
-                iterator.remove(); 
+                iterator.remove();
             }
         }
     }
@@ -218,7 +244,8 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
                 if (bulletRect.intersects(enemyRect)) {
                     bulletIterator.remove();
                     enemyIterator.remove();
-                    playerPoints++; 
+                    playerPoints++;
+                    updateStage();
                 }
             }
         }
@@ -230,7 +257,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             Rectangle houseRect = new Rectangle(HOUSE_X, HOUSE_Y, PLAYER_SIZE * 3, PLAYER_SIZE * 3);
             if (enemyRect.intersects(houseRect)) {
                 playerHealth -= 2;
-                enemyIterator.remove(); 
+                enemyIterator.remove();
             }
         }
     }
@@ -241,7 +268,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
         if (currentTime - lastShotTime >= SHOT_DELAY && bullets.size() < MAX_BULLETS) {
             lastShotTime = currentTime;
 
-           
+
             int bulletXSpeed = 0;
             int bulletYSpeed = 0;
 
@@ -296,7 +323,7 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
             Rectangle enemyRect = new Rectangle(x, y, ENEMY_SIZE, ENEMY_SIZE);
             Rectangle houseRect = new Rectangle(HOUSE_X, HOUSE_Y, PLAYER_SIZE * 3, PLAYER_SIZE * 3);
             if (enemyRect.intersects(houseRect)) {
-                playerHealth -= 2;
+                playerHealth -= 100;
                 shouldRemove = true;
             }
         }
@@ -319,9 +346,125 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
         }
         moveBullets();
         checkCollisions();
+
+        checkPlayerHealth(); // Check player's health status
     }
 
-    private class Bullet {
+
+    private void checkPlayerHealth() {
+        if (!gameOver && playerHealth <= 0) { // Check game over flag before proceeding
+            gameOver = true; // Set game over flag to true
+            int choice = JOptionPane.showOptionDialog(SwingUtilities.getWindowAncestor(this), "Game Over! Do you want to start a new game or return home?", "Game Over", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[]{"New Game", "Home"}, "New Game");
+
+            if (choice == JOptionPane.YES_OPTION) {
+                restartGame(); // Restart the game
+            } else {
+                // Return to the intro panel
+                JFrame gameFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                gameFrame.dispose(); // Close the game window
+                enemySpawnTimer.cancel(); // Stop enemy spawning
+
+                // Create and show the intro panel
+                JFrame introFrame = new JFrame("Intro");
+                introFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                introFrame.getContentPane().add(new IntroPanel());
+                introFrame.pack();
+                introFrame.setLocationRelativeTo(null);
+                introFrame.setVisible(true);
+            }
+        }
+    }
+
+
+    private void restartGame() {
+        // Stop enemy spawning
+        enemySpawnTimer.cancel();
+
+        // Reset player position, health, and points
+        playerX = WIDTH / 4;
+        playerY = HEIGHT / 2;
+        playerHealth = 200;
+        playerPoints = 0;
+
+        // Clear enemies and bullets lists
+        enemies.clear();
+        bullets.clear();
+
+        // Restart enemy spawning
+        startEnemySpawning();
+    }
+
+    private boolean isPaused = false;
+
+ // Modify the game loop to check for the pause state
+ 
+ 
+
+ // Modify the method to show the escape panel
+ private void showEscapePanel() {
+     // Pause the game when the escape panel is shown
+     isPaused = true;
+     
+     String[] options = {"Restart Game", "New Game", "Continue", "Home"};
+     int choice = JOptionPane.showOptionDialog(frame, "Choose an option", "Game Menu", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+     switch (choice) {
+         case 0:
+             restartGame();
+             break;
+         case 1:
+             newGame();
+             break;
+         case 2:
+             // Continue playing, do nothing
+             break;
+         case 3:
+             returnHome();
+             break;
+         default:
+             break;
+     }
+
+     // Resume the game after the escape panel is dismissed
+     isPaused = false;
+ }
+
+    private void newGame() {
+        // Stop enemy spawning
+        enemySpawnTimer.cancel();
+
+        // Clear enemies and bullets lists
+        enemies.clear();
+        bullets.clear();
+
+        // Reset player position, health, and points
+        playerX = WIDTH / 4;
+        playerY = HEIGHT / 2;
+        playerHealth = 200;
+        playerPoints = 0;
+
+        // Restart enemy spawning
+        startEnemySpawning();
+    }
+
+    private void returnHome() {
+        // Close the current game window
+        JFrame gameFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        gameFrame.dispose();
+
+        // Stop enemy spawning
+        enemySpawnTimer.cancel();
+
+        // Create and show the intro panel
+        JFrame introFrame = new JFrame("Intro");
+        introFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        introFrame.getContentPane().add(new IntroPanel());
+        introFrame.pack();
+        introFrame.setLocationRelativeTo(null);
+        introFrame.setVisible(true);
+    }
+
+
+    class Bullet {
         int x, y;
         int xSpeed, ySpeed;
 

@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class MultiPlayer extends JFrame implements KeyListener {
+	private static final long serialVersionUID = 1L;
 	static final int WIDTH = 1300;
 	static final int HEIGHT = 800;
 	static final int PLAYER_SIZE = 40;
