@@ -204,7 +204,7 @@ public class MultiPlayer extends JFrame implements KeyListener {
 		}
 
 		// Shooting mechanism for the red player
-		if (e.getKeyCode() == KeyEvent.VK_SHIFT && bullets.size() < MAX_BULLETS) {
+		if (e.getKeyCode() == KeyEvent.VK_ENTER && bullets.size() < MAX_BULLETS) {
 			int directionX2 = 0, directionY2 = 0;
 
 			// Check the arrow keys for movement direction

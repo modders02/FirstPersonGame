@@ -11,7 +11,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class SinglePlayer extends JPanel implements Runnable, KeyListener {
-    private IntroPanel introPanel;
     private static final long serialVersionUID = 1L;
     private static final int WIDTH = 1300;
     private static final int HEIGHT = 800;
@@ -51,7 +50,6 @@ public class SinglePlayer extends JPanel implements Runnable, KeyListener {
 
     public SinglePlayer(JFrame frame, IntroPanel introPanel) {
         this.frame = frame;
-        this.introPanel = introPanel;
         setBackground(Color.BLACK);
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addKeyListener(this);
